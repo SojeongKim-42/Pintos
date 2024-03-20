@@ -233,6 +233,24 @@ thread_sleep (int64_t wakeup_time)
   intr_set_level (old_level);
 }
 
+void 
+thread_wake(void) {
+    struct list_elem *e;
+
+    for (e = list_begin(&sleep_list); e != list_end(&sleep_list);) {
+        struct thread *t = list_entry(e, struct thread, elem);
+        int64_t current_time = timer_ticks();
+
+        if (t-> wakeup_time <= current_time) {
+            e = list_remove(e);
+            thread_unblock(t); 
+        } else {
+            e = list_next(e);
+        }
+    }
+}
+
+
 
 /* Puts the current thread to sleep.  It will not be scheduled
    again until awoken by thread_unblock().

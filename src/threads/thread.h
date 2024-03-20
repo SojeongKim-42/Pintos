@@ -118,6 +118,7 @@ typedef void thread_func (void *aux);
 tid_t thread_create (const char *name, int priority, thread_func *, void *);
 
 void thread_sleep (int64_t wakeup_time);
+void thread_wake (void);
 
 void thread_block (void);
 void thread_unblock (struct thread *);
