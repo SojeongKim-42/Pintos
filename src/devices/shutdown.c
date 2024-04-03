@@ -97,6 +97,7 @@ shutdown_power_off (void)
   print_stats ();
 
   printf ("Powering off...\n");
+  outw(0x604, 0x0 | 0x2000);
   serial_flush ();
 
   /* This is a special power-off sequence supported by Bochs and

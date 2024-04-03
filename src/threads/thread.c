@@ -248,6 +248,7 @@ thread_wake(void) {
             e = list_next(e);
         }
     }
+}
 
 
 
@@ -287,7 +288,7 @@ thread_unblock (struct thread *t)
   /* Insert the element of the thread into the 'ready_list', 
      ensuring it is placed at a position sorted according to the priority of the thread,
      using the 'thread_compare_priorrity' function*/
-  list_insert_ordered (&ready_list, &t->elem, compare_thread_priority, 0);
+  list_insert_ordered (&ready_list, &t->elem, compare_thread_priority, NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -361,7 +362,7 @@ thread_yield (void)
   /* Insert the element of the thread into the 'ready_list', 
      ensuring it is placed at a position sorted according to the priority of the thread,
      using the 'thread_compare_priorrity' function*/
-    list_insert_ordered (&ready_list, &cur->elem, compare_thread_priority, 0);
+    list_insert_ordered(&ready_list, &cur->elem, compare_thread_priority, NULL);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -389,7 +390,7 @@ compare_thread_priority (struct list_elem *a, struct list_elem *b, void *aux UNU
 {
   const struct thread *aa = list_entry (a, struct thread, elem);
   const struct thread *bb = list_entry (b, struct thread, elem);
-  return aa -> priority > bb -> priority;
+  return (aa -> priority) > (bb -> priority);
 }
 
 /*compare and change thread priority*/
