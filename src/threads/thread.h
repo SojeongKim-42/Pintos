@@ -118,6 +118,7 @@ typedef void thread_func (void *aux);
 tid_t thread_create (const char *name, int priority, thread_func *, void *);
 
 void thread_sleep (int64_t wakeup_time);
+void thread_wake (void);
 
 void thread_block (void);
 void thread_unblock (struct thread *);
@@ -132,6 +133,9 @@ void thread_yield (void);
 /* Performs some operation on thread t, given auxiliary data AUX. */
 typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
+
+bool compare_thread_priority (struct list_elem *a, struct list_elem *b, void *aux);
+void change_thread_priority (void);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
