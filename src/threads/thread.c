@@ -1,4 +1,5 @@
 #include "threads/thread.h"
+#include "threads/fixed-point.h"
 #include <debug.h>
 #include <stddef.h>
 #include <random.h>
@@ -114,6 +115,7 @@ thread_start (void)
   struct semaphore idle_started;
   sema_init (&idle_started, 0);
   thread_create ("idle", PRI_MIN, idle, &idle_started);
+  load_avg = LOAD_AVG_DEFAULT;
 
   /* Start preemptive thread scheduling. */
   intr_enable ();
@@ -408,14 +410,6 @@ change_thread_priority(void)
 
 
 
-/* Sets the current thread's priority to NEW_PRIORITY. */
-void
-thread_set_priority (int new_priority) 
-{
-  thread_current ()->priority = new_priority;
-  change_thread_priority(); /*change thread priority if needed*/
-}
-
 /* Returns the current thread's priority. */
 int
 thread_get_priority (void) 
@@ -423,35 +417,88 @@ thread_get_priority (void)
   return thread_current ()->priority;
 }
 
-/* Sets the current thread's nice value to NICE. */
-void
-thread_set_nice (int nice UNUSED) 
+/* Sets the current thread's priority to NEW_PRIORITY. */
+void 
+thread_set_priority(int new_priority)
 {
-  /* Not yet implemented. */
+  thread_current()->priority = new_priority;
+  change_thread_priority(); /*change thread priority if needed*/
 }
 
-/* Returns the current thread's nice value. */
+
+
+/* Returns the current thread's nice value. ok*/
 int
 thread_get_nice (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  enum intr_level old_level = intr_disable();
+  int nice_val = thread_current()->nice;
+  intr_set_level(old_level);
+  return nice_val;
 }
 
-/* Returns 100 times the system load average. */
-int
-thread_get_load_avg (void) 
+/* Sets the current thread's nice value to NICE. */
+void 
+thread_set_nice(int nice UNUSED)
 {
-  /* Not yet implemented. */
-  return 0;
+  enum intr_level old_level = intr_disable();
+  thread_current()->nice = nice;
+
+  /* TODO: recalculate priority,
+    If the running thread no longer has the highest priority, yields. */
+  intr_set_level(old_level);
 }
 
-/* Returns 100 times the current thread's recent_cpu value. */
+/* (int) Returns 100 times the system load average.ok */
+int 
+thread_get_load_avg(void)
+{
+  enum intr_level old_level = intr_disable();
+  int load_val = to_int_round(multiply_mix(divide_fps(to_fp(59), to_fp(60)), 100));
+  intr_set_level(old_level); 
+  return load_val;
+}
+
+/* Set system load_avg, load_avg = (59/60)*load_avg + (1/60)*ready_threads*/
+void 
+thread_set_load_avg(void)
+{
+  enum intr_level old_level = intr_disable();
+
+  int ready_len = list_size(&ready_list);
+  if (thread_current() == idle_thread)
+  {
+    ready_len++; // running thread (current thread)
+  }
+  load_avg = add_fps(multiply_fps(divide_fps(to_fp(59), to_fp(60)), load_avg),
+                     multiply_mix(divide_fps(to_fp(1), to_fp(60)), ready_len));
+
+  intr_set_level(old_level);
+}
+
+/* (int) Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  enum intr_level old_level = intr_disable();
+  int recent_val = to_int_round(multiply_mix(thread_current()->recent_cpu, 100));
+  intr_set_level(old_level);
+  return recent_val;
+}
+
+/* Set recent_cpu of current_thread*/
+void
+thread_set_recent_cpu(void)
+{  
+  enum intr_level old_level = intr_disable();
+  
+  int load_avg2 = multiply_mix(load_avg, 2); //fp
+  thread_current()->recent_cpu =
+      add_mix( 
+        multiply_fps(divide_fps(load_avg2, add_mix(load_avg2,1)), thread_current()->recent_cpu),
+        thread_current()->nice);
+
+  intr_set_level(old_level);
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -539,6 +586,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+  t->nice = NICE_DEFAULT;
+  t->recent_cpu = RECENT_CPU_DEFAULT;
   list_push_back (&all_list, &t->allelem);
 }
 
