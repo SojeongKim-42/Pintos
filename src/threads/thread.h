@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "threads/fixed-point.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -94,7 +95,7 @@ struct thread
     struct list_elem allelem;           /* List element for all threads list. */
     int64_t wakeup_time;                /* Only exists in sleeping threads. Time to wake up. */
     int nice;                           /* (int) Mlfqs: how well CPU usage this thread give or take to other threads*/
-    int recent_cpu;                     /* (fp) Mlfqs: how much time this thread used CPU in last minute*/
+    FP recent_cpu;                     /* (fp) Mlfqs: how much time this thread used CPU in last minute*/
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -113,11 +114,11 @@ struct thread
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
 
-/* (fp) Mlfqs
+/*  Mlfqs
    Average number of threads ready to run over the past minute.
    At system boot, it is initialized to 0. Once per second thereafter,
    it is updated. */
-int load_avg;
+FP load_avg;
 
 void thread_init (void);
 void thread_start (void);

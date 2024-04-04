@@ -429,7 +429,7 @@ thread_set_priority(int new_priority)
 
 
 
-/* Returns the current thread's nice value. ok*/
+/* Returns the current thread's nice value. */
 int
 thread_get_nice (void) 
 {
@@ -446,13 +446,12 @@ thread_set_nice(int nice UNUSED)
   enum intr_level old_level = intr_disable();
   thread_current()->nice = nice;
 
-  thread_set_priority_mlfqs(thread_current());
-  /* TODO: If the running thread no longer has the highest priority, yields. */
-
+  thread_set_priority_mlfqs(thread_current());  
+  change_thread_priority();
   intr_set_level(old_level);
 }
 
-/* (int) Returns 100 times the system load average.ok */
+/* (int) Returns 100 times the system load average. */
 int 
 thread_get_load_avg(void)
 {
@@ -494,7 +493,7 @@ thread_set_recent_cpu(struct thread *t)
   if (t == idle_thread)
     return;
   // enum intr_level old_level = intr_disable();
-  int load_avg2 = multiply_mix(load_avg, 2); // fp
+  FP load_avg2 = multiply_mix(load_avg, 2);
   t->recent_cpu =
       add_mix(multiply_fps(divide_fps(load_avg2, add_mix(load_avg2, 1)), t->recent_cpu),
               t->nice);
