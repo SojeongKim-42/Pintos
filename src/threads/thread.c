@@ -229,7 +229,6 @@ thread_sleep (int64_t wakeup_time)
   old_level = intr_disable ();
   ASSERT (thread_current() != idle_thread);
 
-  printf("sleeping thread: %s...\n", thread_name() );
   thread_current () -> wakeup_time = wakeup_time;
   list_push_back (&sleep_list, &thread_current() -> elem);
   thread_block ();
@@ -246,7 +245,6 @@ thread_wake(void) {
 
         if (t-> wakeup_time <= current_time) {
             e = list_remove(e);
-            printf("waking thread: %s...\n", t->name);
             thread_unblock(t); 
         } else {
             e = list_next(e);
@@ -268,7 +266,6 @@ thread_block (void)
   ASSERT (!intr_context ());
   ASSERT (intr_get_level () == INTR_OFF);
 
-  // printf("blocking thread: %s\n", thread_name());
   thread_current ()->status = THREAD_BLOCKED;
   schedule ();
 }
@@ -289,7 +286,6 @@ thread_unblock (struct thread *t)
   ASSERT (is_thread (t));
 
   old_level = intr_disable ();
-    // printf("unblocking thread: %s\n", thread_name());
   ASSERT (t->status == THREAD_BLOCKED);
   /* Insert the element of the thread into the 'ready_list', 
      ensuring it is placed at a position sorted according to the priority of the thread,
@@ -470,7 +466,7 @@ thread_get_load_avg(void)
 void 
 thread_set_load_avg(void)
 {
-  enum intr_level old_level = intr_disable();
+  // enum intr_level old_level = intr_disable();
 
   int ready_len = list_size(&ready_list);
   if (thread_current() != idle_thread)
@@ -478,7 +474,7 @@ thread_set_load_avg(void)
   load_avg = add_fps(multiply_fps(divide_fps(to_fp(59), to_fp(60)), load_avg),
                      multiply_mix(divide_fps(to_fp(1), to_fp(60)), ready_len));
 
-  intr_set_level(old_level);
+  // intr_set_level(old_level);
 }
 
 /* (int) Returns 100 times the current thread's recent_cpu value. */
@@ -497,13 +493,13 @@ thread_set_recent_cpu(struct thread *t)
 {
   if (t == idle_thread)
     return;
-  enum intr_level old_level = intr_disable();
+  // enum intr_level old_level = intr_disable();
   int load_avg2 = multiply_mix(load_avg, 2); // fp
   t->recent_cpu =
       add_mix(multiply_fps(divide_fps(load_avg2, add_mix(load_avg2, 1)), t->recent_cpu),
               t->nice);
 
-  intr_set_level(old_level);
+  // intr_set_level(old_level);
 }
 
 /* increment current_thread's recent_cpu by 1 for every timer interrupt*/
@@ -518,7 +514,7 @@ thread_increment_recent_cpu(void)
 /* Calculate recent_cpu of all threads*/
 void thread_renew_recent_cpus(void)
 {
-  enum intr_level old_level = intr_disable();
+  // enum intr_level old_level = intr_disable();
 
   struct list_elem *e;
   for (e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e))
@@ -527,7 +523,7 @@ void thread_renew_recent_cpus(void)
     thread_set_recent_cpu(t);
   }
 
-  intr_set_level(old_level);
+  // intr_set_level(old_level);
 }
 
 /* Calculate priority of thread*/
@@ -549,7 +545,7 @@ thread_set_priority_mlfqs(struct thread *t)
 void 
 thread_renew_priorities_mlfqs(void)
 {
-  enum intr_level old_level = intr_disable();
+  // enum intr_level old_level = intr_disable();
 
   struct list_elem *e;
   for (e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e))
@@ -558,7 +554,7 @@ thread_renew_priorities_mlfqs(void)
     thread_set_priority_mlfqs(t);
   }
 
-  intr_set_level(old_level);
+  // intr_set_level(old_level);
 }
 
 
