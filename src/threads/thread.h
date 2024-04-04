@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "threads/fixed-point.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -23,6 +24,9 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+#define NICE_DEFAULT 0                  /* Mlfqs: No effect. */
+#define RECENT_CPU_DEFAULT 0            /* Mlfqs: No CPU use. */
+#define LOAD_AVG_DEFAULT 0              /* Mlfqs: No running threads*/
 
 /* A kernel thread or user process.
 
@@ -89,8 +93,10 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
-    int64_t wakeup_time;                /* Only exists sleeping threads. Time to wake up. */
     int original_priority;
+    int64_t wakeup_time;                /* Only exists in sleeping threads. Time to wake up. */
+    int nice;                           /* (int) Mlfqs: how well CPU usage this thread give or take to other threads*/
+    FP recent_cpu;                     /* (fp) Mlfqs: how much time this thread used CPU in last minute*/
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -111,6 +117,12 @@ struct thread
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
+
+/*  Mlfqs
+   Average number of threads ready to run over the past minute.
+   At system boot, it is initialized to 0. Once per second thereafter,
+   it is updated. */
+FP load_avg;
 
 void thread_init (void);
 void thread_start (void);
@@ -146,9 +158,15 @@ void sort_ready_list(void);
 int thread_get_priority (void);
 void thread_set_priority (int);
 
+/* mlfqs functions*/
 int thread_get_nice (void);
-void thread_set_nice (int);
-int thread_get_recent_cpu (void);
-int thread_get_load_avg (void);
-
+void thread_set_nice(int nice UNUSED);
+int thread_get_recent_cpu(void);
+void thread_set_recent_cpu(struct thread *t);
+void thread_renew_recent_cpus(void);
+void thread_increment_recent_cpu(void);
+int thread_get_load_avg(void);
+void thread_set_load_avg(void);
+void thread_set_priority_mlfqs(struct thread *t);
+void thread_renew_priorities_mlfqs(void);
 #endif /* threads/thread.h */
