@@ -113,10 +113,18 @@ sema_up (struct semaphore *sema)
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
-  if (!list_empty (&sema->waiters)) 
-    thread_unblock (list_entry (list_pop_front (&sema->waiters),
-                                struct thread, elem));
+  bool priority_changed = false;
+
+  if (!list_empty (&sema->waiters)) {
+      list_sort(&sema -> waiters, compare_thread_priority, NULL);
+      struct thread *unblocked_thread = list_entry (list_pop_front (&sema->waiters),struct thread, elem);
+      thread_unblock(unblocked_thread);
+      priority_changed = true;
+  }
   sema->value++;
+  if (priority_changed && change_thread_priority()) {
+    thread_yield();
+  }
   intr_set_level (old_level);
 }
 
@@ -189,16 +197,91 @@ lock_init (struct lock *lock)
    interrupt handler.  This function may be called with
    interrupts disabled, but interrupts will be turned back on if
    we need to sleep. */
+
 void
 lock_acquire (struct lock *lock)
 {
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
+  
+  struct thread *cur =  thread_current();
+  struct thread *holder = lock -> holder;
+
+  if (holder != NULL)
+  {
+    cur -> lock_wait = lock;
+    donate_priority(cur);
+  }
 
   sema_down (&lock->semaphore);
-  lock->holder = thread_current ();
+
+  lock -> holder = cur; 
+  list_push_back (&cur -> lock_hold, &lock-> elem);
+  
 }
+
+
+
+void
+donate_priority(struct thread *cur)
+{
+  struct thread *holder = cur->lock_wait->holder; // Holder of the lock
+  int current_priority = cur->priority; // Priority of the current thread
+  bool is_ready = false; // Flag indicating whether the ready_list needs to be updated
+
+  // Change the priorities of threads owning the lock
+  while (holder != NULL) {
+    if (holder->priority < current_priority) { // If the priority is lower than the current thread
+      if (holder->status == THREAD_READY) // If the thread is in the READY state
+        is_ready = true; // Need to update the ready_list
+
+      holder->priority = current_priority; // Update the priority
+    } else {
+      break; // Stop if the priority is the same as or higher than the current thread
+    }
+
+    // Move to the next thread owning the lock
+    if (holder->lock_wait != NULL)
+      holder = holder->lock_wait->holder;
+    else
+      break; // Stop if lock_wait is NULL
+  }
+
+  // Update the ready_list if necessary
+  if (is_ready)
+    sort_ready_list();
+}
+
+
+void update_priority(struct thread *cur)
+{
+  int highest_priority = cur->original_priority; // Initialize with the original priority of the current thread
+
+  // Check the waiting queues of locks held by the current thread to determine the highest priority
+  struct list_elem *lock_elem;
+  for (lock_elem = list_begin(&cur->lock_hold); lock_elem != list_end(&cur->lock_hold); lock_elem = list_next(lock_elem))
+  {
+    struct lock *lock = list_entry(lock_elem, struct lock, elem); // Get the current lock
+    struct semaphore *sema = &lock->semaphore; // Get the semaphore associated with the lock
+
+    // If the queue is not empty
+    if (!list_empty(&sema->waiters))
+    {
+      // Get the priority of the thread with the highest priority in the queue
+      list_sort(&sema->waiters, compare_thread_priority, NULL);
+      int max_waiter_priority = list_entry(list_front(&sema->waiters), struct thread, elem)->priority;
+
+      // Update the highest priority
+      if (highest_priority < max_waiter_priority)
+        highest_priority = max_waiter_priority;
+    }
+  }
+
+  // Update the thread's priority with the highest priority
+  cur->priority = highest_priority;
+}
+
 
 /* Tries to acquires LOCK and returns true if successful or false
    on failure.  The lock must not already be held by the current
@@ -230,8 +313,12 @@ lock_release (struct lock *lock)
 {
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
+  struct thread *cur = thread_current();
 
   lock->holder = NULL;
+  list_remove(&lock -> elem);
+  update_priority(cur);
+
   sema_up (&lock->semaphore);
 }
 
