@@ -1,5 +1,4 @@
 #include "threads/thread.h"
-#include "threads/fixed-point.h"
 #include <debug.h>
 #include <stddef.h>
 #include <random.h>
@@ -12,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/fixed-point.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -455,7 +455,7 @@ int
 thread_get_load_avg(void)
 {
   enum intr_level old_level = intr_disable();
-  int load_val = to_int_round(multiply_mix(divide_fps(to_fp(59), to_fp(60)), 100));
+  int load_val = to_int_round(multiply_mix(load_avg, 100));
   intr_set_level(old_level); 
   return load_val;
 }
@@ -467,7 +467,7 @@ thread_set_load_avg(void)
   enum intr_level old_level = intr_disable();
 
   int ready_len = list_size(&ready_list);
-  if (thread_current() == idle_thread)
+  if (thread_current() != idle_thread)
     ready_len++; // running thread (current thread)
   load_avg = add_fps(multiply_fps(divide_fps(to_fp(59), to_fp(60)), load_avg),
                      multiply_mix(divide_fps(to_fp(1), to_fp(60)), ready_len));
