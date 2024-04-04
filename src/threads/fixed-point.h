@@ -1,8 +1,6 @@
 #ifndef THREADS_FIXED_POINT_H
 #define THREADS_FIXED_POINT_H
 #define F (1 << 14)
-typedef int FP;
-
 
 /* Operations of integer & fixed point numbers.
 
@@ -12,7 +10,7 @@ typedef int FP;
    n: integer   */
 
 /* n to fixed point */
-FP to_fp(int n);
+int to_fp(int n);
 
 /* x to integer rounding toward zero (floor) */
 int to_int(int x);
@@ -21,31 +19,31 @@ int to_int(int x);
 int to_int_round(int x);
 
 /* add fixed point numbers x, y -> x+y */
-FP add_fps(int x, int y);
+int add_fps(int x, int y);
 
 /* subtract fixed point y from fixed point x -> x-y */
-FP sub_fps(int x, int y);
+int sub_fps(int x, int y);
 
 /* add fixed point x and int n -> x+n */
-FP add_mix(int x, int n);
+int add_mix(int x, int n);
 
 /* subtract int n from fixed point y -> x-n */
-FP sub_mix(int x, int n);
+int sub_mix(int x, int n);
 
 /* multiply fixed point x by fixed point y -> x*y */
-FP multiply_fps(int x, int y);
+int multiply_fps(int x, int y);
 
 /* multiply fixed point x by int n -> x*n */
-FP multiply_mix(int x, int n);
+int multiply_mix(int x, int n);
 
 /* divide fixed point x by fixed point y -> x/y*/
-FP divide_fps(int x, int y);
+int divide_fps(int x, int y);
 
 /* divide fixed point x by int n -> x/n */
-FP divide_mix(int x, int n);
+int divide_mix(int x, int n);
 
 
-FP 
+int 
 to_fp(int n)
 {
     return n * F;
@@ -65,49 +63,49 @@ to_int_round(int x)
     return (x - F / 2) / F;
 }
 
-FP
+int 
 add_fps(int x, int y)
 {
     return x + y;
 }
 
-FP
+int 
 sub_fps(int x, int y)
 {
     return x - y;
 }
 
-FP
+int 
 add_mix(int x, int n)
 {
     return x + n * F;
 }
 
-FP 
+int 
 sub_mix(int x, int n)
 {
     return x - n * F;
 }
 
-FP 
+int 
 multiply_fps(int x, int y)
 {
     return ((int64_t)x) * y / F;
 }
 
-FP 
+int 
 multiply_mix(int x, int n)
 {
     return x * n;
 }
 
-FP
+int 
 divide_fps(int x, int y)
 {
     return ((int64_t)x) * F / y;
 }
 
-FP 
+int 
 divide_mix(int x, int n)
 {
     return x / n;
