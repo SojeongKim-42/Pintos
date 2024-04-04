@@ -12,6 +12,7 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "threads/fixed-point.h"
+#include "threads/fixed-point.c"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -512,7 +513,7 @@ thread_set_recent_cpu(struct thread *t)
   if (t == idle_thread)
     return;
   // enum intr_level old_level = intr_disable();
-  FP load_avg2 = multiply_mix(load_avg, 2);
+  int load_avg2 = multiply_mix(load_avg, 2);
   t->recent_cpu =
       add_mix(multiply_fps(divide_fps(load_avg2, add_mix(load_avg2, 1)), t->recent_cpu),
               t->nice);
