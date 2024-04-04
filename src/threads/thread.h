@@ -151,11 +151,15 @@ void change_thread_priority (void);
 int thread_get_priority (void);
 void thread_set_priority (int);
 
+/* mlfqs functions*/
 int thread_get_nice (void);
-void thread_set_nice (int);
+void thread_set_nice(int nice UNUSED);
 int thread_get_recent_cpu(void);
-void thread_set_recent_cpu(void);
+void thread_set_recent_cpu(struct thread *t);
+void thread_renew_recent_cpus(void);
+void thread_increment_recent_cpu(void);
 int thread_get_load_avg(void);
 void thread_set_load_avg(void);
-
+void thread_set_priority_mlfqs(struct thread *t);
+void thread_renew_priorities_mlfqs(void);
 #endif /* threads/thread.h */
