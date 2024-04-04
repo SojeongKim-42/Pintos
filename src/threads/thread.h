@@ -96,7 +96,7 @@ struct thread
     int original_priority;
     int64_t wakeup_time;                /* Only exists in sleeping threads. Time to wake up. */
     int nice;                           /* (int) Mlfqs: how well CPU usage this thread give or take to other threads*/
-    FP recent_cpu;                     /* (fp) Mlfqs: how much time this thread used CPU in last minute*/
+    int recent_cpu;                     /* (fp) Mlfqs: how much time this thread used CPU in last minute*/
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -122,7 +122,7 @@ extern bool thread_mlfqs;
    Average number of threads ready to run over the past minute.
    At system boot, it is initialized to 0. Once per second thereafter,
    it is updated. */
-FP load_avg;
+int load_avg;
 
 void thread_init (void);
 void thread_start (void);
