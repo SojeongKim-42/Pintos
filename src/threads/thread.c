@@ -388,7 +388,7 @@ thread_foreach (thread_action_func *func, void *aux)
 }
 /*Compare the priorities of two threads and return the result.*/
 bool 
-compare_thread_priority (struct list_elem *a, struct list_elem *b, void *aux UNUSED) 
+compare_thread_priority (const struct list_elem *a,const struct list_elem *b, void *aux UNUSED) 
 {
   const struct thread *aa = list_entry (a, struct thread, elem);
   const struct thread *bb = list_entry (b, struct thread, elem);
@@ -396,35 +396,54 @@ compare_thread_priority (struct list_elem *a, struct list_elem *b, void *aux UNU
 }
 
 /*compare and change thread priority*/
-void
+bool
 change_thread_priority(void)
 {
+  bool priority_changed = false;
+
   if (!list_empty(&ready_list)) {
-    struct thread *first = list_entry(list_front(&ready_list), struct thread, elem);
     struct thread *cur = thread_current();
-    if (cur -> priority < first -> priority) {
+    struct list_elem *e = list_begin(&ready_list);
+    struct thread *first = list_entry(e, struct thread, elem);
+    
+    /* If current thread's priority is lower than or equal to the highest priority thread in ready list */
+    if (!list_empty(&ready_list) && cur->priority < first->priority) {
+      priority_changed = true;
       thread_yield();
     }
   }
+  return priority_changed;
+}
+
+void
+sort_ready_list(void)
+{
+  list_sort(&ready_list, compare_thread_priority, NULL);
 }
 
 
+void thread_set_priority(int new_priority) 
+{
+  struct thread *cur = thread_current();
+  bool priority_update_needed = (new_priority > cur->priority || cur->original_priority == cur->priority);
+  
+  // Update priority if needed
+  if (priority_update_needed)
+    cur->priority = new_priority;
+
+  // Update original_priority to new_priority
+  cur->original_priority = new_priority; 
+
+  // Change thread priority if needed
+  if (priority_update_needed)
+    change_thread_priority();
+}
 
 /* Returns the current thread's priority. */
 int
 thread_get_priority (void) 
 {
   return thread_current ()->priority;
-}
-
-/* Sets the current thread's priority to NEW_PRIORITY. */
-void 
-thread_set_priority(int new_priority)
-{
-  if (thread_mlfqs)
-    return;
-  thread_current()->priority = new_priority;
-  change_thread_priority(); /*change thread priority if needed*/
 }
 
 
@@ -642,6 +661,11 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+  
+  t -> lock_wait = NULL;
+  list_init (&t -> lock_hold);
+  t -> original_priority = priority;
+  
   t->nice = NICE_DEFAULT;
   t->recent_cpu = RECENT_CPU_DEFAULT;
   list_push_back (&all_list, &t->allelem);
