@@ -229,6 +229,7 @@ thread_sleep (int64_t wakeup_time)
   old_level = intr_disable ();
   ASSERT (thread_current() != idle_thread);
 
+  printf("sleeping thread: %s...\n", thread_name() );
   thread_current () -> wakeup_time = wakeup_time;
   list_push_back (&sleep_list, &thread_current() -> elem);
   thread_block ();
@@ -245,6 +246,7 @@ thread_wake(void) {
 
         if (t-> wakeup_time <= current_time) {
             e = list_remove(e);
+            printf("waking thread: %s...\n", t->name);
             thread_unblock(t); 
         } else {
             e = list_next(e);
@@ -266,6 +268,7 @@ thread_block (void)
   ASSERT (!intr_context ());
   ASSERT (intr_get_level () == INTR_OFF);
 
+  // printf("blocking thread: %s\n", thread_name());
   thread_current ()->status = THREAD_BLOCKED;
   schedule ();
 }
@@ -286,6 +289,7 @@ thread_unblock (struct thread *t)
   ASSERT (is_thread (t));
 
   old_level = intr_disable ();
+    // printf("unblocking thread: %s\n", thread_name());
   ASSERT (t->status == THREAD_BLOCKED);
   /* Insert the element of the thread into the 'ready_list', 
      ensuring it is placed at a position sorted according to the priority of the thread,
@@ -421,6 +425,8 @@ thread_get_priority (void)
 void 
 thread_set_priority(int new_priority)
 {
+  if (thread_mlfqs)
+    return;
   thread_current()->priority = new_priority;
   change_thread_priority(); /*change thread priority if needed*/
 }
@@ -518,7 +524,7 @@ void thread_renew_recent_cpus(void)
   for (e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e))
   {
     struct thread *t = list_entry(e, struct thread, elem);
-    thread_set_priority_mlfqs(t);
+    thread_set_recent_cpu(t);
   }
 
   intr_set_level(old_level);
