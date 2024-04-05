@@ -545,7 +545,7 @@ thread_renew_recent_cpus()
   struct list_elem *e;
   for (e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e))
   {
-    struct thread *t = list_entry(e, struct thread, elem);
+    struct thread *t = list_entry(e, struct thread, allelem);
     thread_set_recent_cpu(t);
   }
 
