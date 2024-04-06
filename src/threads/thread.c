@@ -454,17 +454,13 @@ thread_get_priority (void)
 int
 thread_get_nice (void) 
 {
-  enum intr_level old_level = intr_disable();
-  int nice_val = thread_current()->nice;
-  intr_set_level(old_level);
-  return nice_val;
+  return thread_current()->nice;
 }
 
 /* Sets the current thread's nice value to NICE. */
 void 
 thread_set_nice(int nice UNUSED)
 {
-  // enum intr_level old_level = intr_disable();
   if(thread_current()==idle_thread) 
     return;
   struct thread *cur = thread_current();
@@ -472,16 +468,12 @@ thread_set_nice(int nice UNUSED)
   cur->nice = nice;
   thread_set_priority_mlfqs(cur);  
   change_thread_priority();
-  // intr_set_level(old_level);
 }
 
 /* (int) Returns 100 times the system load average. */
 int 
 thread_get_load_avg(void)
 {
-  // enum intr_level old_level = intr_disable();
-  // int load_val = to_int_round(multiply_mix(load_avg, 100));
-  // intr_set_level(old_level); 
   return to_int_round(multiply_mix(load_avg, 100));
 }
 
@@ -489,28 +481,17 @@ thread_get_load_avg(void)
 void
 thread_set_load_avg(void)
 {
-  // enum intr_level old_level = intr_disable();
-
   int ready_len = list_size(&ready_list);
   if (thread_current() != idle_thread)
     ready_len++; // running thread (current thread)
-  // load_avg = add_fps(multiply_fps(divide_fps(to_fp(59), to_fp(60)), load_avg),
-  //                    multiply_mix(divide_fps(to_fp(1), to_fp(60)), ready_len));
-
-  int coef=divide_mix(to_fp(1), 60);
-  load_avg=add_fps(multiply_fps(multiply_mix(coef, 59), load_avg),
-                   multiply_mix(coef, ready_len));
-
-  // intr_set_level(old_level);
+  load_avg = add_fps(multiply_fps(divide_fps(to_fp(59), to_fp(60)), load_avg),
+                     multiply_mix(divide_fps(to_fp(1), to_fp(60)), ready_len));
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 Fpoint
 thread_get_recent_cpu (void) 
 {
-  // enum intr_level old_level = intr_disable();
-  // int recent_val = to_int_round(multiply_mix(thread_current()->recent_cpu, 100));
-  // intr_set_level(old_level);
   return to_int_round(multiply_mix(thread_current()->recent_cpu, 100));
 }
 
@@ -519,12 +500,9 @@ thread_set_recent_cpu(struct thread *t)
 {
   if (t == idle_thread)
     return;
-  // enum intr_level old_level = intr_disable();
   int coef = multiply_mix(load_avg, 2);
   coef=divide_fps(coef, add_mix(coef, 1));
   t->recent_cpu = add_mix(multiply_fps(coef, t->recent_cpu), t->nice);
-
-  // intr_set_level(old_level);
 }
 
 /* increment current_thread's recent_cpu by 1 for every timer interrupt*/
@@ -540,16 +518,12 @@ thread_increment_recent_cpu(void)
 void
 thread_renew_recent_cpus()
 {
-  // enum intr_level old_level = intr_disable();
-
   struct list_elem *e;
   for (e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e))
   {
     struct thread *t = list_entry(e, struct thread, allelem);
     thread_set_recent_cpu(t);
   }
-
-  // intr_set_level(old_level);
 }
 
 /* Calculate priority of thread. priority = PRI_MAX - (recent_cpu / 4) - (nice * 2)*/
@@ -558,9 +532,7 @@ thread_set_priority_mlfqs(struct thread *t)
 {
   if (t == idle_thread)
     return;
-  // int p = to_int(add_mix(divide_mix(t->recent_cpu, -4), PRI_MAX - (t->nice) * 2));
-  int rc = to_int_round(divide_mix(t->recent_cpu, 4));
-  int p = PRI_MAX - rc - 2 * t->nice;
+  int p = to_int(add_mix(divide_mix(t->recent_cpu, -4), PRI_MAX - (t->nice) * 2));
   if (p > PRI_MAX)
     t->priority = PRI_MAX;
   else if (p < PRI_MIN)
@@ -573,8 +545,6 @@ thread_set_priority_mlfqs(struct thread *t)
 void 
 thread_renew_priorities_mlfqs(void)
 {
-    // enum intr_level old_level = intr_disable();
-
   struct list_elem *e;
   for (e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e))
 	{
@@ -583,8 +553,6 @@ thread_renew_priorities_mlfqs(void)
 	}
 
 	sort_ready_list();
-
-  // intr_set_level(old_level);
 }
 
 
