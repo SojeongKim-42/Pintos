@@ -1,8 +1,7 @@
 #ifndef THREADS_FIXED_POINT_H
 #define THREADS_FIXED_POINT_H
-#define F (1 << 14)
-typedef int FP;
-
+typedef int Fpoint;
+static const int F = (1 << 14);
 
 /* Operations of integer & fixed point numbers.
 
@@ -12,103 +11,103 @@ typedef int FP;
    n: integer   */
 
 /* n to fixed point */
-FP to_fp(int n);
+Fpoint to_fp(int n);
 
 /* x to integer rounding toward zero (floor) */
-int to_int(int x);
+Fpoint to_int(Fpoint x);
 
 /* x to integer rounding to nearest (round) */
-int to_int_round(int x);
+Fpoint to_int_round(Fpoint x);
 
-/* add fixed point numbers x, y -> x+y */
-FP add_fps(int x, int y);
+/* add fixed poINT Numbers x, y -> x+y */
+Fpoint add_fps(Fpoint x, Fpoint y);
 
-/* subtract fixed point y from fixed point x -> x-y */
-FP sub_fps(int x, int y);
+/* subtract fixed poFpoint y from fixed poFpoint x -> x-y */
+Fpoint sub_fps(Fpoint x, Fpoint y);
 
-/* add fixed point x and int n -> x+n */
-FP add_mix(int x, int n);
+/* add fixed poFpoint x and int n -> x+n */
+Fpoint add_mix(Fpoint x, int n);
 
-/* subtract int n from fixed point y -> x-n */
-FP sub_mix(int x, int n);
+/* subtract int n from fixed poFpoint y -> x-n */
+Fpoint sub_mix(Fpoint x, int n);
 
-/* multiply fixed point x by fixed point y -> x*y */
-FP multiply_fps(int x, int y);
+/* multiply fixed poFpoint x by fixed poFpoint y -> x*y */
+Fpoint multiply_fps(Fpoint x, Fpoint y);
 
-/* multiply fixed point x by int n -> x*n */
-FP multiply_mix(int x, int n);
+/* multiply fixed poFpoint x by int n -> x*n */
+Fpoint multiply_mix(Fpoint x, int n);
 
-/* divide fixed point x by fixed point y -> x/y*/
-FP divide_fps(int x, int y);
+/* divide fixed poFpoint x by fixed poFpoint y -> x/y*/
+Fpoint divide_fps(Fpoint x, Fpoint y);
 
-/* divide fixed point x by int n -> x/n */
-FP divide_mix(int x, int n);
+/* divide fixed poFpoint x by int n -> x/n */
+Fpoint divide_mix(Fpoint x, int n);
 
 
-FP 
+Fpoint 
 to_fp(int n)
 {
     return n * F;
 }
 
-int 
-to_int(int x)
+Fpoint 
+to_int(Fpoint x)
 {
     return x / F;
 }
 
-int 
-to_int_round(int x)
+Fpoint 
+to_int_round(Fpoint x)
 {
     if (x >= 0)
         return (x + F / 2) / F;
     return (x - F / 2) / F;
 }
 
-FP
-add_fps(int x, int y)
+Fpoint 
+add_fps(Fpoint x, Fpoint y)
 {
     return x + y;
 }
 
-FP
-sub_fps(int x, int y)
+Fpoint 
+sub_fps(Fpoint x, Fpoint y)
 {
     return x - y;
 }
 
-FP
-add_mix(int x, int n)
+Fpoint 
+add_mix(Fpoint x, int n)
 {
     return x + n * F;
 }
 
-FP 
-sub_mix(int x, int n)
+Fpoint 
+sub_mix(Fpoint x, int n)
 {
     return x - n * F;
 }
 
-FP 
-multiply_fps(int x, int y)
+Fpoint 
+multiply_fps(Fpoint x, Fpoint y)
 {
     return ((int64_t)x) * y / F;
 }
 
-FP 
-multiply_mix(int x, int n)
+Fpoint 
+multiply_mix(Fpoint x, int n)
 {
     return x * n;
 }
 
-FP
-divide_fps(int x, int y)
+Fpoint 
+divide_fps(Fpoint x, Fpoint y)
 {
     return ((int64_t)x) * F / y;
 }
 
-FP 
-divide_mix(int x, int n)
+Fpoint 
+divide_mix(Fpoint x, int n)
 {
     return x / n;
 }

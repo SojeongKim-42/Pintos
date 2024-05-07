@@ -4,7 +4,6 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-#include "threads/fixed-point.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -93,16 +92,16 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
-    int original_priority;
-    int64_t wakeup_time;                /* Only exists in sleeping threads. Time to wake up. */
+		int original_priority;							
+		int64_t wakeup_time;                /* Only exists in sleeping threads. Time to wake up. */
     int nice;                           /* (int) Mlfqs: how well CPU usage this thread give or take to other threads*/
-    FP recent_cpu;                     /* (fp) Mlfqs: how much time this thread used CPU in last minute*/
+    int recent_cpu;                     /* (fp) Mlfqs: how much time this thread used CPU in last minute*/
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
-    struct list lock_hold;
-    struct lock *lock_wait;
+		struct list lock_hold;				
+		struct lock *lock_wait;				
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -117,12 +116,6 @@ struct thread
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
-
-/*  Mlfqs
-   Average number of threads ready to run over the past minute.
-   At system boot, it is initialized to 0. Once per second thereafter,
-   it is updated. */
-FP load_avg;
 
 void thread_init (void);
 void thread_start (void);
