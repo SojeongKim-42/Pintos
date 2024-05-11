@@ -70,7 +70,7 @@ sema_down (struct semaphore *sema)
     {
 			struct thread *cur = thread_current();
 			list_insert_ordered(&sema->waiters, &cur->elem, compare_thread_priority, NULL);
-      thread_block ();
+     thread_block ();
     }
   sema->value--;
   intr_set_level (old_level);
@@ -198,7 +198,7 @@ lock_init (struct lock *lock)
    interrupt handler.  This function may be called with
    interrupts disabled, but interrupts will be turned back on if
    we need to sleep. */
-
+   
 void
 lock_acquire (struct lock *lock)
 {
@@ -300,7 +300,11 @@ lock_try_acquire (struct lock *lock)
 
   success = sema_try_down (&lock->semaphore);
   if (success)
+  {
     lock->holder = thread_current ();
+    // add lock to the lock list for thread
+    list_push_back(&thread_current()->lock_list, &lock->elem);
+  }
   return success;
 }
 
