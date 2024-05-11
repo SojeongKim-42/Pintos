@@ -252,6 +252,7 @@ void sys_exit (int status) {
     }
     cur->cp->status = status;
   }
+  printf ("%s: exit(%d)\n", cur -> name, status);
   thread_exit();
 }
 
@@ -346,8 +347,7 @@ int read(int fd, void *buffer, unsigned size){
   struct file *file_ptr = get_file(fd);
   if (!file_ptr)
   {
-    lock_release(&lock_file_sys
-);
+    lock_release(&lock_file_sys);
     return ERROR;
   }
   int bytes_read = file_read(file_ptr, buffer, size); // from file.h
@@ -397,8 +397,7 @@ unsigned tell (int fd) {
   struct file *file_ptr = get_file(fd);
   if (!file_ptr)
   {
-    lock_release(&lock_file_sys
-);
+    lock_release(&lock_file_sys);
     return ERROR;
   }
   off_t offset = file_tell(file_ptr); //from file.h
