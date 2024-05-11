@@ -109,8 +109,17 @@ struct thread
 #endif
 
     /* Owned by thread.c. */
-    unsigned magic;                     /* Detects stack overflow. */
+    unsigned magic;      
+    struct list file_list;
+    int fd;
+    struct list child_list;
+    tid_t parent;
+    struct child_process *cp;
+    struct list lock_list;
+    struct file *exe_file;
+               /* Detects stack overflow. */
   };
+
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -139,6 +148,8 @@ const char *thread_name (void);
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
 
+struct list file_list;
+
 /* Performs some operation on thread t, given auxiliary data AUX. */
 typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
@@ -150,6 +161,8 @@ void sort_ready_list(void);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
+
+int is_thread_alive (int pid);
 
 /* mlfqs functions*/
 int thread_get_nice (void);

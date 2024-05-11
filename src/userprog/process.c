@@ -17,6 +17,8 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
+#include "userprog/syscall.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -98,6 +100,23 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+  lock_acquire(&lock_file_sys);
+  process_close_file(CLOSE_FILE);
+  /* check if current thread is an executable if so we will close it */
+  if (cur->exe_file)
+  {
+    file_close(cur->exe_file); // from file.h
+  }
+  lock_release(&lock_file_sys);
+  
+  /* free the list of child processes */
+  remove_all_child_processes();
+  
+  if (is_thread_alive(cur->parent))
+  {
+    cur->cp->exit = 1;
+    sema_up(&cur->cp->exit_sema);
+  }
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;

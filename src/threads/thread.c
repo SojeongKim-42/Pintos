@@ -109,6 +109,9 @@ thread_init (void)
 
 /* Starts preemptive thread scheduling by enabling interrupts.
    Also creates the idle thread. */
+
+static bool threading_started = false;
+  
 void
 thread_start (void) 
 {
@@ -120,7 +123,7 @@ thread_start (void)
 
   /* Start preemptive thread scheduling. */
   intr_enable ();
-
+  threading_started = true;
   /* Wait for the idle thread to initialize idle_thread. */
   sema_down (&idle_started);
 }
@@ -266,7 +269,8 @@ thread_block (void)
 {
   ASSERT (!intr_context ());
   ASSERT (intr_get_level () == INTR_OFF);
-
+  if (!threading_started)
+    return;
   thread_current ()->status = THREAD_BLOCKED;
   schedule ();
 }
@@ -367,7 +371,9 @@ thread_yield (void)
      using the 'thread_compare_priorrity' function*/
 		list_insert_ordered(&ready_list, &cur->elem, compare_thread_priority, NULL);
   cur->status = THREAD_READY;
-  schedule ();
+  if (threading_started)
+    schedule ();
+
   intr_set_level (old_level);
 }
 
@@ -396,19 +402,20 @@ compare_thread_priority (const struct list_elem *a,const struct list_elem *b, vo
   return (aa -> priority) > (bb -> priority);
 }
 
-/*compare and change thread priority*/
 bool
 change_thread_priority(void)
 {
   bool priority_changed = false;
 
+  /* Check if the ready list is not empty */
   if (!list_empty(&ready_list)) {
     struct thread *cur = thread_current();
     struct list_elem *e = list_begin(&ready_list);
     struct thread *first = list_entry(e, struct thread, elem);
     
-    /* If current thread's priority is lower than or equal to the highest priority thread in ready list */
-    if (!list_empty(&ready_list) && cur->priority < first->priority) {
+    /* If current thread's priority is lower than or equal to the highest priority thread in the ready list 
+       and the current context is not an interrupt context */
+    if (!intr_context() && cur->priority < first->priority) {
       priority_changed = true;
       thread_yield();
     }
@@ -642,6 +649,15 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
 
+  list_push_back (&all_list, &t -> allelem);
+    list_init (&t -> file_list);
+
+  t -> fd = 2;
+  list_init (&t -> child_list);
+  t -> cp = NULL;
+  t -> parent = -1;
+  
+
   t -> lock_wait = NULL;
   list_init (&t -> lock_hold);
   t -> original_priority = priority;
@@ -764,3 +780,21 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+int is_thread_alive (int pid){
+  struct list_elem *e;
+  struct list_elem *next;
+  for (e = list_begin(&all_list); e != list_end(&all_list); e = next)
+  {
+    next = list_next(e);
+    struct thread *t = list_entry (e, struct thread, allelem);
+    if (t->tid == pid)
+    {
+      // pid matches return true
+      return 1;
+    }
+  }
+  return 0; // no tid matches then thread is no longer alive
+}
+
+
