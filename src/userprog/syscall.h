@@ -37,7 +37,7 @@ void remove_child_process (struct child_process *child);
 void remove_all_child_processes (void);
 struct file* get_file(int fd);
 void process_close_file (int file_descriptor);
-void exit (int status);
+void sys_exit (int status);
 
 
 

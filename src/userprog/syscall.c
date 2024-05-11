@@ -90,7 +90,7 @@ struct file* get_file (int fd) {
     for (e = list_begin(&cur->file_list); e != list_end(&cur->file_list); e = list_next(e)) {
         struct file_desc *fd_elem = list_entry(e, struct file_desc, elem);
         if (fd_elem->fd == fd)
-            return fd_elem;
+            return fd_elem -> fp;
     }
     return NULL;
 }
@@ -127,16 +127,14 @@ syscall_handler (struct intr_frame *f UNUSED)
 
     case SYS_EXIT: {
       get_arg (f, &arg[0], 1);
-      if (!is_valid_ptr((const void *)arg[0]))
-        exit(ERROR);
-      exit(arg[0]);
+      sys_exit(arg[0]);
       break;
     }
 
     case SYS_EXEC: {
       get_arg(f, &arg[0], 1);
       if (!is_valid_ptr((const void *)arg[0]))
-        exit(ERROR);
+        sys_exit(ERROR);
       is_valid_str((const void *)arg[0]);
       arg[0] = (int)pointer_page((const void *)arg[0]);
       f->eax = exec((const char *)arg[0]);
@@ -146,7 +144,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_WAIT: {
       get_arg(f, &arg[0], 1);
       if (!is_valid_ptr((const void *)arg[0]))
-        exit(ERROR);
+        sys_exit(ERROR);
       f->eax = wait(arg[0]);
       break;
     }
@@ -154,7 +152,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_CREATE: {
       get_arg(f, &arg[0], 2);
       if (!is_valid_ptr((const void *)arg[0]))
-        exit(ERROR);
+        sys_exit(ERROR);
       is_valid_str((const void *)arg[0]);
       arg[0] = (int)pointer_page((const void *)arg[0]);
       f->eax = create((const char *)arg[0], (unsigned)arg[1]);
@@ -164,7 +162,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_REMOVE: {
       get_arg(f, &arg[0], 1);
       if (!is_valid_ptr((const void *)arg[0]))
-        exit(ERROR);
+        sys_exit(ERROR);
       is_valid_str((const void *)arg[0]);
       arg[0] = (int)pointer_page((const void *)arg[0]);
       f->eax = remove((const char *)arg[0]);
@@ -174,7 +172,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_OPEN: {
      get_arg(f, &arg[0], 1);
       if (!is_valid_ptr((const void *)arg[0]))
-        exit(ERROR);
+        sys_exit(ERROR);
       is_valid_str((const void *)arg[0]);
       arg[0] = (int)pointer_page((const void *)arg[0]);
       f->eax = open((const char *)arg[0]);
@@ -184,7 +182,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_FILESIZE: {
       get_arg(f, &arg[0], 1);
       if (!is_valid_ptr((const void *)arg[0]))
-        exit(ERROR);
+        sys_exit(ERROR);
       f->eax = filesize(arg[0]);
       break;
     }
@@ -192,7 +190,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_READ: {
      get_arg(f, &arg[0], 3);
       if (!is_valid_ptr((const void *)arg[1]))
-        exit(ERROR);
+        sys_exit(ERROR);
       is_valid_buffer((const void *)arg[1], (unsigned)arg[2]);
       arg[1] = (int)pointer_page((const void *)arg[1]);
       f->eax = read(arg[0], (void *)arg[1], (unsigned)arg[2]);
@@ -202,7 +200,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_WRITE: {
       get_arg(f, &arg[0], 3);
       if (!is_valid_ptr((const void *)arg[1]))
-        exit(ERROR);
+        sys_exit(ERROR);
       is_valid_buffer((const void *)arg[1], (unsigned)arg[2]);
       arg[1] = (int)pointer_page((const void *)arg[1]);
       f->eax = write(arg[0], (const void *)arg[1], (unsigned)arg[2]);
@@ -212,7 +210,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_SEEK: {
       get_arg(f, &arg[0], 2);
       if (!is_valid_ptr((const void *)arg[0]))
-        exit(ERROR);
+        sys_exit(ERROR);
       seek(arg[0], (unsigned)arg[1]);
       break;
     }
@@ -220,7 +218,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_TELL: {
       get_arg(f, &arg[0], 1);
       if (!is_valid_ptr((const void *)arg[0]))
-        exit(ERROR);
+        sys_exit(ERROR);
       f->eax = tell(arg[0]);
       break;
     }
@@ -228,7 +226,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_CLOSE: {
       get_arg(f, &arg[0], 1);
       if (!is_valid_ptr((const void *)arg[0]))
-        exit(ERROR);
+        sys_exit(ERROR);
       close(arg[0]);
       break;
     }
@@ -244,7 +242,7 @@ void halt(void)
   shutdown_power_off();
 }
 
-void exit (int status) {
+void sys_exit (int status) {
   struct thread *cur = thread_current();
   if (is_thread_alive(cur->parent) && cur->cp)
   {
@@ -486,4 +484,3 @@ process_close_file (int file_descriptor)
     }
   }
 }
-
