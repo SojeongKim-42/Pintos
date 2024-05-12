@@ -69,17 +69,14 @@ bool is_valid_ptr (const void * vaddr) {
 
 /*Calls exit with -1 status*/
 void is_valid_str (const void *str) {
-  for (; * (char *) pointer_page(str) != 0; str = (char *) str + 1);
+    is_valid_ptr(str);
 }
 
 bool is_valid_buffer (const void *buf, unsigned byte_size) {
-  unsigned i = 0;
-  char *buf_local = (char *)buf;
-  for (; i < byte_size; i++)
-  {
-    is_valid_ptr ((const void*)buf_local);
-    buf_local ++;
-  }
+    if (!is_valid_ptr(buf)) {
+        return false;
+    }
+    return true;
 }
 
 /*Return file * equivalent to file descriptor */
@@ -244,7 +241,7 @@ void halt(void)
 
 void sys_exit (int status) {
   struct thread *cur = thread_current();
-  if (is_thread_alive(cur->parent) && cur->cp)
+  if (check_thread(cur->parent) && cur->cp)
   {
     if (status < 0)
     {
@@ -258,20 +255,20 @@ void sys_exit (int status) {
 
 tid_t exec (const char *cmd_line) {
     tid_t tid = process_execute(cmd_line);
-    struct child_process *child_process_ptr = find_child_process(tid);
-    if (!child_process_ptr)
+    struct child_process *cp_pointer = find_cp(tid);
+    if (!cp_pointer)
     {
       return ERROR;
     }
     /* check if process if loaded */
-    if (child_process_ptr->load_status == UNLOADED)
+    if (cp_pointer->load_status == UNLOADED)
     {
-      sema_down(&child_process_ptr->load_sema);
+      sema_down(&cp_pointer->load_sema);
     }
     /* check if process failed to load */
-    if (child_process_ptr->load_status == LOADED_FAIL)
+    if (cp_pointer->load_status == LOADED_FAIL)
     {
-      remove_child_process(child_process_ptr);
+      remove_cp(cp_pointer);
       return ERROR;
     }
     return tid;
@@ -284,46 +281,46 @@ int wait(tid_t id ) {
 
 bool create (const char *file, unsigned initial_size){
   lock_acquire(&lock_file_sys);
-  bool successful = filesys_create(file, initial_size); // from filesys.h
+  bool new = filesys_create(file, initial_size); // from filesys.h
   lock_release(&lock_file_sys);
-  return successful;
+  return new;
 }
 
 bool remove (const char *file) {
   lock_acquire(&lock_file_sys);
-  bool successful = filesys_remove(file); // from filesys.h
+  bool new = filesys_remove(file); // from filesys.h
   lock_release(&lock_file_sys);
-  return successful;
+  return new;
 }
 
 int open (const char *file){
   lock_acquire(&lock_file_sys);
-  struct file *file_ptr = filesys_open(file); // from filesys.h
-  if (!file_ptr)
+  struct file *f_pointer = filesys_open(file); // from filesys.h
+  if (!f_pointer)
   {
     lock_release(&lock_file_sys);
     return ERROR;
   }
-  int filedes = add_file(file_ptr);
+  int filedes = add_file(f_pointer);
   lock_release(&lock_file_sys);
   return filedes;
 }
 
 int filesize (int fd) {
   lock_acquire(&lock_file_sys);
-  struct file *file_ptr = get_file(fd);
-  if (!file_ptr)
+  struct file *f_pointer = get_file(fd);
+  if (!f_pointer)
   {
     lock_release(&lock_file_sys);
     return ERROR;
   }
-  int filesize = file_length(file_ptr); // from file.h
+  int filesize = file_length(f_pointer); // from file.h
   lock_release(&lock_file_sys);
   return filesize;
 }
 
-#define STD_INPUT 0
-#define STD_OUTPUT 1
+#define SYSINPUT 0
+#define SYSOUTPUT 1
 
 int read(int fd, void *buffer, unsigned size){
   if (size <= 0)
@@ -331,95 +328,91 @@ int read(int fd, void *buffer, unsigned size){
     return size;
   }
   
-  if (fd == STD_INPUT)
+  if (fd == SYSINPUT)
   {
     unsigned i = 0;
     uint8_t *local_buf = (uint8_t *) buffer;
     for (;i < size; i++)
     {
-      // retrieve pressed key from the input buffer
       local_buf[i] = input_getc(); // from input.h
     }
     return size;
 }
-  /* read from file */
   lock_acquire(&lock_file_sys);
-  struct file *file_ptr = get_file(fd);
-  if (!file_ptr)
+  struct file *f_pointer = get_file(fd);
+  if (!f_pointer)
   {
     lock_release(&lock_file_sys);
     return ERROR;
   }
-  int bytes_read = file_read(file_ptr, buffer, size); // from file.h
+  int bytes_read = file_read(f_pointer, buffer, size); // from file.h
   lock_release (&lock_file_sys);
   return bytes_read;
 }
+
 
 int write (int fd, const void *buffer, unsigned size){
     if (size <= 0)
     {
       return size;
     }
-    if (fd == STD_OUTPUT)
+    if (fd == SYSOUTPUT)
     {
       putbuf (buffer, size); // from stdio.h
       return size;
     }
-    // start writing to file
     lock_acquire(&lock_file_sys);
-    struct file *file_ptr = get_file(fd);
-    if (!file_ptr)
+    struct file *f_pointer = get_file(fd);
+    if (!f_pointer)
     {
       lock_release(&lock_file_sys);
       return ERROR;
     }
-    int bytes_written = file_write(file_ptr, buffer, size); // file.h
+    int bytes_written = file_write(f_pointer, buffer, size); // file.h
     lock_release (&lock_file_sys);
     return bytes_written;
-
 }
 
 void seek (int fd, unsigned position){
   lock_acquire(&lock_file_sys);
-  struct file *file_ptr = get_file(fd);
-  if (!file_ptr)
+  struct file *f_pointer = get_file(fd);
+  if (!f_pointer)
   {
-    lock_release(&lock_file_sys
-);
+    lock_release(&lock_file_sys);
     return;
   }
-  file_seek(file_ptr, position);
+  file_seek(f_pointer, position);
   lock_release(&lock_file_sys);
 }
 
 unsigned tell (int fd) {
   lock_acquire(&lock_file_sys);
-  struct file *file_ptr = get_file(fd);
-  if (!file_ptr)
+  struct file *f_pointer = get_file(fd);
+  if (!f_pointer)
   {
     lock_release(&lock_file_sys);
     return ERROR;
   }
-  off_t offset = file_tell(file_ptr); //from file.h
+  off_t offset = file_tell(f_pointer); //from file.h
   lock_release(&lock_file_sys);
   return offset;
 }
 
 void close (int fd) {
   lock_acquire(&lock_file_sys);
-  process_close_file(fd);
+  close_fd(fd);
   lock_release(&lock_file_sys);
 }
 
 int pointer_page (const void *vaddr){
-  void *ptr = pagedir_get_page(thread_current() -> pagedir, vaddr);
-  if (!ptr) {
-    return -1;
-  }
-  return (int)ptr;
+    if (is_valid_ptr(vaddr)) {
+        return (int)vaddr;
+    } else {
+        return -1;
+    }
 }
 
-struct child_process* find_child_process(int pid)
+struct child_process* find_cp(int pid)
 {
   struct thread *t = thread_current();
   struct list_elem *e;
@@ -438,14 +431,14 @@ struct child_process* find_child_process(int pid)
 }
 
 void
-remove_child_process (struct child_process *cp)
+remove_cp (struct child_process *cp)
 {
   list_remove(&cp->elem);
   free(cp);
 }
 
 /* remove all child processes for a thread */
-void remove_all_child_processes (void) 
+void remove_all_cp (void) 
 {
   struct thread *t = thread_current();
   struct list_elem *next;
@@ -461,7 +454,7 @@ void remove_all_child_processes (void)
 }
 
 void
-process_close_file (int file_descriptor)
+close_fd (int file_descriptor)
 {
   struct thread *t = thread_current();
   struct list_elem *next;

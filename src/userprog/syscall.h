@@ -32,11 +32,11 @@ struct child_process {
 };
 
 int pointer_page (const void *vaddr);
-struct child_process* find_child_process (int pid);
-void remove_child_process (struct child_process *child);
-void remove_all_child_processes (void);
+struct child_process* find_cp (int pid);
+void remove_cp (struct child_process *child);
+void remove_all_cp (void);
 struct file* get_file(int fd);
-void process_close_file (int file_descriptor);
+void close_fd (int file_descriptor);
 void sys_exit (int status);
 
 

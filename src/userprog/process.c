@@ -21,7 +21,7 @@
 #include "userprog/syscall.h"
 
 static thread_func start_process NO_RETURN;
-static bool load (const char *cmdline, void (**eip) (void), void **esp, char **saveptr);
+static bool load (const char *cmdline, void (**eip) (void), void **esp, char **pointer_fp);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -40,8 +40,8 @@ process_execute (const char * file_name)
   }
   
   strlcpy (fn_copy, file_name, PGSIZE);
-  char *saveptr;
-  file_name = strtok_r((char*)file_name, " ", &saveptr );
+  char *pointer_fp;
+  file_name = strtok_r((char*)file_name, " ", &pointer_fp );
   
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   
@@ -59,16 +59,14 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-  char *saveptr;
-  //const char *sp = ' ';
-  file_name = strtok_r ((char*)file_name, " ", &saveptr);
+  char *pointer_fp;
+  file_name = strtok_r ((char*)file_name, " ", &pointer_fp);
   
-  /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp, &saveptr);
+  success = load (file_name, &if_.eip, &if_.esp, &pointer_fp);
 
   if (success){
     thread_current()->cp->load_status = LOADED;
@@ -105,23 +103,23 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  struct child_process* child_process_ptr = find_child_process(child_tid);
-  if (!child_process_ptr)
+  struct child_process* cp_pointer = find_cp(child_tid);
+  if (!cp_pointer)
   {
     return ERROR;
   }
   
-  if (child_process_ptr->wait)
+  if (cp_pointer->wait)
   {
     return ERROR;
   }
-  child_process_ptr->wait = 1; // set wait for child to true
-  while (!child_process_ptr->exit)
+  cp_pointer->wait = 1; // set wait for child to true
+  while (!cp_pointer->exit)
   {
     asm volatile ("" : : : "memory");
   }
-  int status = child_process_ptr->status;
-  remove_child_process(child_process_ptr);
+  int status = cp_pointer->status;
+  remove_cp(cp_pointer);
   return status;
 }
 
@@ -133,35 +131,22 @@ process_exit (void)
   uint32_t *pd;
   
   lock_acquire(&lock_file_sys);
-  process_close_file(CLOSE_FILE);
-  /* check if current thread is an executable if so we will close it */
+  close_fd(CLOSE_FILE);
   if (cur->exe_file)
   {
-    file_close(cur->exe_file); // from file.h
+    file_close(cur->exe_file); 
   }
   lock_release(&lock_file_sys);
+  remove_all_cp();
   
-  /* free the list of child processes */
-  remove_all_child_processes();
-  
-  if (is_thread_alive(cur->parent))
+  if (check_thread(cur->parent))
   {
     cur->cp->exit = 1;
     sema_up(&cur->cp->exit_sema);
   }
-  
-  /* Destroy the current process's page directory and switch back
-     to the kernel-only page directory. */
   pd = cur->pagedir;
   if (pd != NULL) 
     {
-      /* Correct ordering here is crucial.  We must set
-         cur->pagedir to NULL before switching page directories,
-         so that a timer interrupt can't switch back to the
-         process page directory.  We must activate the base page
-         directory before destroying the process's page
-         directory, or our active page directory will be one
-         that's been freed (and cleared). */
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
@@ -247,7 +232,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp, char **saveptr, const char *filename );
+static bool setup_stack (void **esp, char **pointer_fp, const char *filename );
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -258,7 +243,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load (const char *file_name, void (**eip) (void), void **esp, char **saveptr) 
+load (const char *file_name, void (**eip) (void), void **esp, char **pointer_fp) 
 {
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
@@ -273,15 +258,14 @@ load (const char *file_name, void (**eip) (void), void **esp, char **saveptr)
     goto done;
   process_activate ();
 
-  /* Open executable file. */
-  //lock_acquire(&lock_file_sys);
   file = filesys_open (file_name);
+
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
       goto done; 
     }
-  // since file is an executable, we want to deny write
+
   file_deny_write(file);
   t->exe_file = file;
   
@@ -358,7 +342,7 @@ load (const char *file_name, void (**eip) (void), void **esp, char **saveptr)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp, saveptr, file_name))
+  if (!setup_stack (esp, pointer_fp, file_name))
     goto done;
 
   /* Start address. */
@@ -367,9 +351,6 @@ load (const char *file_name, void (**eip) (void), void **esp, char **saveptr)
   success = true;
 
  done:
-  /* We arrive here whether the load is successful or not. */
-  //file_close (file);
-  //lock_release(&lock_file_sys);
   return success;
 }
 
@@ -481,10 +462,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   return true;
 }
 
-/* Create a minimal stack by mapping a zeroed page at the top of
-   user virtual memory. */
 static bool
-setup_stack (void **esp, char **saveptr, const char *filename) 
+setup_stack (void **esp, char **pointer_fp, const char *filename) 
 {
   uint8_t *kpage;
   bool success = false;
@@ -508,7 +487,7 @@ setup_stack (void **esp, char **saveptr, const char *filename)
   int byte_size = 0;
   int arg_size = DEFAULT_ARGV;
   // copy command line into cont and resize to necessary size
-  for (token = (char*)filename; token != NULL; token = strtok_r(NULL, " ", saveptr)){
+  for (token = (char*)filename; token != NULL; token = strtok_r(NULL, " ", pointer_fp)){
     cont[argc] = token;
     argc++;
     if (argc >= arg_size) {
@@ -557,22 +536,10 @@ setup_stack (void **esp, char **saveptr, const char *filename)
   // free argv and cont
   free(argv);
   free(cont);
-  // hex dump to check
-  // hex_dump(0, *esp, byte_size, 1); 
-  // hex_dump((int)*esp+byte_size, *esp, byte_size, 1);
   return success;
 }
 
 
-/* Adds a mapping from user virtual address UPAGE to kernel
-   virtual address KPAGE to the page table.
-   If WRITABLE is true, the user process may modify the page;
-   otherwise, it is read-only.
-   UPAGE must not already be mapped.
-   KPAGE should probably be a page obtained from the user pool
-   with palloc_get_page().
-   Returns true on success, false if UPAGE is already mapped or
-   if memory allocation fails. */
 static bool
 install_page (void *upage, void *kpage, bool writable)
 {

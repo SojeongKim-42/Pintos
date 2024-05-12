@@ -218,7 +218,7 @@ thread_create (const char *name, int priority,
   intr_set_level (old_level);
 
   t->parent = thread_tid();
-  struct child_process *cp = add_child_process(t->tid);
+  struct child_process *cp = add_cp(t->tid);
   t->cp = cp;
 
   /* Add to run queue. */
@@ -350,6 +350,7 @@ thread_exit (void)
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable ();
+  thread_release_locks();
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
   schedule ();
@@ -781,7 +782,7 @@ allocate_tid (void)
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
-int is_thread_alive (int pid){
+int check_thread (int pid){
   struct list_elem *e;
   struct list_elem *next;
   for (e = list_begin(&all_list); e != list_end(&all_list); e = next)
@@ -797,7 +798,7 @@ int is_thread_alive (int pid){
   return 0; // no tid matches then thread is no longer alive
 }
 
-struct child_process* add_child_process (int pid)
+struct child_process* add_cp (int pid)
 {
   struct child_process *cp = malloc(sizeof(struct child_process));
   cp->pid = pid;

@@ -117,7 +117,6 @@ struct thread
     struct child_process *cp;
     struct list lock_list;
     struct file *exe_file;
-               /* Detects stack overflow. */
   };
 
 
@@ -160,8 +159,8 @@ void sort_ready_list(void);
 int thread_get_priority (void);
 void thread_set_priority (int);
 
-int is_thread_alive (int pid);
-struct child_process* add_child_process (int pid);
+int check_thread (int pid);
+struct child_process* add_cp (int pid);
 void thread_release_locks(void);
 
 /* mlfqs functions*/
