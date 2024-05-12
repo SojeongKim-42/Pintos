@@ -12,8 +12,10 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "threads/fixed-point.h"
+#include "threads/malloc.h"
 #ifdef USERPROG
 #include "userprog/process.h"
+#include "userprog/syscall.h"
 #endif
 
 /* Random value for struct thread's `magic' member.
@@ -109,6 +111,8 @@ thread_init (void)
 
 /* Starts preemptive thread scheduling by enabling interrupts.
    Also creates the idle thread. */
+
+  
 void
 thread_start (void) 
 {
@@ -120,7 +124,6 @@ thread_start (void)
 
   /* Start preemptive thread scheduling. */
   intr_enable ();
-
   /* Wait for the idle thread to initialize idle_thread. */
   sema_down (&idle_started);
 }
@@ -214,6 +217,10 @@ thread_create (const char *name, int priority,
 
   intr_set_level (old_level);
 
+  t->parent = thread_tid();
+  struct child_process *cp = add_cp(t->tid);
+  t->cp = cp;
+
   /* Add to run queue. */
   thread_unblock (t);
   change_thread_priority(); /*change thread priority if needed*/
@@ -266,7 +273,6 @@ thread_block (void)
 {
   ASSERT (!intr_context ());
   ASSERT (intr_get_level () == INTR_OFF);
-
   thread_current ()->status = THREAD_BLOCKED;
   schedule ();
 }
@@ -344,6 +350,7 @@ thread_exit (void)
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable ();
+  thread_release_locks();
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
   schedule ();
@@ -368,6 +375,7 @@ thread_yield (void)
 		list_insert_ordered(&ready_list, &cur->elem, compare_thread_priority, NULL);
   cur->status = THREAD_READY;
   schedule ();
+
   intr_set_level (old_level);
 }
 
@@ -396,19 +404,20 @@ compare_thread_priority (const struct list_elem *a,const struct list_elem *b, vo
   return (aa -> priority) > (bb -> priority);
 }
 
-/*compare and change thread priority*/
 bool
 change_thread_priority(void)
 {
   bool priority_changed = false;
 
+  /* Check if the ready list is not empty */
   if (!list_empty(&ready_list)) {
     struct thread *cur = thread_current();
     struct list_elem *e = list_begin(&ready_list);
     struct thread *first = list_entry(e, struct thread, elem);
     
-    /* If current thread's priority is lower than or equal to the highest priority thread in ready list */
-    if (!list_empty(&ready_list) && cur->priority < first->priority) {
+    /* If current thread's priority is lower than or equal to the highest priority thread in the ready list 
+       and the current context is not an interrupt context */
+    if (!intr_context() && cur->priority < first->priority) {
       priority_changed = true;
       thread_yield();
     }
@@ -646,9 +655,17 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init (&t -> lock_hold);
   t -> original_priority = priority;
   
-		t->nice = NICE_DEFAULT;
-		t->recent_cpu = RECENT_CPU_DEFAULT;
+  t->nice = NICE_DEFAULT;
+  t->recent_cpu = RECENT_CPU_DEFAULT;
   list_push_back (&all_list, &t->allelem);
+  
+	list_init(&t->file_list);
+  t->fd = 2;                  // minimum file descriptor is 2
+  list_init(&t->child_list);
+  t->cp = NULL;               //children of parent is null at the start
+  t->parent = -1;             // there is no parent yet
+  list_init(&t->lock_list);
+  t->exe_file = NULL;
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
@@ -764,3 +781,50 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+int check_thread (int pid){
+  struct list_elem *e;
+  struct list_elem *next;
+  for (e = list_begin(&all_list); e != list_end(&all_list); e = next)
+  {
+    next = list_next(e);
+    struct thread *t = list_entry (e, struct thread, allelem);
+    if (t->tid == pid)
+    {
+      // pid matches return true
+      return 1;
+    }
+  }
+  return 0; // no tid matches then thread is no longer alive
+}
+
+struct child_process* add_cp (int pid)
+{
+  struct child_process *cp = malloc(sizeof(struct child_process));
+  cp->pid = pid;
+  cp->load_status = UNLOADED;
+  cp->wait = 0; // false
+  cp->exit = 0; // false
+  sema_init(&cp->load_sema, 0);
+  sema_init(&cp->exit_sema, 0);
+  list_push_back(&thread_current()->child_list, &cp->elem);
+  
+  return cp;
+}
+
+void
+thread_release_locks (void)
+{
+  struct thread *t = thread_current();
+  struct list_elem *e;
+  struct list_elem *next;
+  
+  for (e = list_begin(&t->lock_list); e != list_end(&t->lock_list); e = next)
+  {
+    next = list_next(e);
+    struct lock *lock_ptr = list_entry (e, struct lock, elem);
+    lock_release(lock_ptr);
+    list_remove(&lock_ptr->elem);
+  }
+}
+

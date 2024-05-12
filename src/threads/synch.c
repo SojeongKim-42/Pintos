@@ -123,7 +123,7 @@ sema_up (struct semaphore *sema)
       priority_changed = true;
   }
   sema->value++;
-  if (priority_changed && change_thread_priority()) {
+  if (!intr_context() && priority_changed && change_thread_priority()) {
     thread_yield();
   }
   intr_set_level (old_level);
@@ -299,8 +299,10 @@ lock_try_acquire (struct lock *lock)
   ASSERT (!lock_held_by_current_thread (lock));
 
   success = sema_try_down (&lock->semaphore);
-  if (success)
+  if (success){
     lock->holder = thread_current ();
+    list_push_back (&thread_current()-> lock_list, &lock->elem);
+  }
   return success;
 }
 

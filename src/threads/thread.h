@@ -109,8 +109,16 @@ struct thread
 #endif
 
     /* Owned by thread.c. */
-    unsigned magic;                     /* Detects stack overflow. */
+    unsigned magic;      
+    struct list file_list;
+    int fd;
+    struct list child_list;
+    tid_t parent;
+    struct child_process *cp;
+    struct list lock_list;
+    struct file *exe_file;
   };
+
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -150,6 +158,10 @@ void sort_ready_list(void);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
+
+int check_thread (int pid);
+struct child_process* add_cp (int pid);
+void thread_release_locks(void);
 
 /* mlfqs functions*/
 int thread_get_nice (void);
